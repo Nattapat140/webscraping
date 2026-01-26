@@ -12,8 +12,12 @@ from dotenv import load_dotenv
 from utils import create_pdf, clean_html_content
 
 # Load environment variables
+# Access the secret securely
+GOOGLE_API_KEY = st.secrets["GEMINI_API_KEY"]
+
+# Configure the Gemini library
 load_dotenv()
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+# GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
 # Configuration
 st.set_page_config(page_title="AI Web Scraper & Visualizer", layout="wide")
