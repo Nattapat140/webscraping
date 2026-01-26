@@ -73,7 +73,7 @@ st.markdown("""
 
 # Application Header
 st.title("🤖 AI Web Scraper & Visualizer")
-st.markdown("Extract hardware specifications and visualize data efficiently")
+st.markdown("This webapp is still in testing, the cost from calling gemini is linked to Ball's billing account")
 
 # --- Sidebar Inputs ---
 with st.sidebar:
@@ -174,7 +174,7 @@ if st.session_state.extracted_text:
     with st.container(height=600):
         # Wrap in div with smaller font size. Newlines are crucial for markdown rendering inside HTML.
         styled_text = f"""
-        <div style="font-size: 14px; line-height: 1.6;">
+        <div style="font-size: 10px; line-height: 1.6;">
 
 {st.session_state.extracted_text}
 
@@ -256,13 +256,12 @@ if st.session_state.extracted_text:
                     
                     if not x_vals or not y_vals:
                         st.error("AI could not extract valid data points.")
-                    else:
-                        # PLOTTING Code
-                        plt.clf() 
+                    else:                        
                         items_count = len(lbls)
-                        dynamic_height = max(8, items_count * 0.4) 
+                        # Optional: Slightly reduced height multiplier since the width will be smaller
+                        dynamic_height = max(6, items_count * 0.35) 
 
-                        fig, ax = plt.subplots(figsize=(12, dynamic_height))
+                        fig, ax = plt.subplots(figsize=(10, dynamic_height))
                         
                         for i in range(len(x_vals)):
                             if i < len(y_vals) and i < len(lbls):
@@ -288,22 +287,29 @@ if st.session_state.extracted_text:
                             title="Product Models",
                             labelspacing=1
                         )
-
+                        
                         plt.tight_layout()
-                        
-                        st.pyplot(fig)
-                        
-                        # Download Button
-                        buffer = io.BytesIO()
-                        fig.savefig(buffer, format='png', bbox_inches='tight')
-                        buffer.seek(0)
-                        
-                        st.download_button(
-                            label="📥 Download Chart",
-                            data=buffer,
-                            file_name="scatter_plot.png",
-                            mime="image/png"
-                        )
+
+                        # --- NEW LAYOUT LOGIC ---
+                        # Create 3 columns: 20% empty | 60% chart | 20% empty
+                        col1, col2, col3 = st.columns([0.2, 0.6, 0.2])
+
+                        with col2:
+                            # Render the plot in the middle column
+                            st.pyplot(fig)
+                            
+                            # Download Button logic (also centered)
+                            buffer = io.BytesIO()
+                            fig.savefig(buffer, format='png', bbox_inches='tight')
+                            buffer.seek(0)
+                            
+                            st.download_button(
+                                label="📥 Download Chart",
+                                data=buffer,
+                                file_name="scatter_plot.png",
+                                mime="image/png",
+                                use_container_width=True # Makes button span the column width
+                            )
                         
                 except Exception as e:
                     st.error(f"Error generating chart: {e}")
