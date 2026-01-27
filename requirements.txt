@@ -7,3 +7,4 @@ fpdf
 python-dotenv
 numpy
 scikit-learn
+plotly

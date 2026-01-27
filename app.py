@@ -2,6 +2,7 @@ import streamlit as st
 import requests
 from bs4 import BeautifulSoup
 from google import genai
+import plotly.express as px
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -21,7 +22,7 @@ import matplotlib.colors as mcolors
 GOOGLE_API_KEY = st.secrets["GEMINI_API_KEY"]
 
 # Configure the Gemini library
-load_dotenv()
+# load_dotenv()
 # GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
 # Configuration
@@ -246,7 +247,6 @@ if st.session_state.extracted_text:
                                 value="",
                                 placeholder="e.g. Note that for the Density please use the Watt and calculate the volume...",
                                 height=108)
-        show_labels = st.checkbox("Show Model Labels", value=True)
 
     if st.button("📉 Generate Scatter Plot"):
         if not x_axis_def or not y_axis_def:
@@ -336,6 +336,7 @@ if st.session_state.extracted_text:
         
         # Prepare Data for Clustering
         df = pd.DataFrame({
+            'Model Name': data['labels'],
             'x': data['x'],
             'y': data['y']
         })
@@ -352,51 +353,61 @@ if st.session_state.extracted_text:
         kmeans = KMeans(n_clusters=n_clusters, random_state=42)
         df['cluster'] = kmeans.fit_predict(scaled_features)
         
-        # Layout: 1 (empty) - 3 (chart) - 1 (empty) => 60% width
-        c1, c2, c3 = st.columns([1, 3, 1])
+            # Create Plotly Figure
+        # Shift clusters to start from 1 instead of 0
+        df['cluster'] = (df['cluster'] + 1).astype(str)
         
-        with c2:
-            # Create Matplotlib Plot
-            fig, ax = plt.subplots(figsize=(10, 6))
-            
-            # Scatter Plot (Bubble Chart style)
-            # Color by cluster, slightly larger size for "bubble" effect
-            scatter = ax.scatter(
-                df['x'], 
-                df['y'], 
-                c=df['cluster'], 
-                cmap='viridis', # Distinct colors
-                s=300,          # Large bubbles
-                alpha=0.6, 
-                edgecolors='black'
-            )
-            
-            # Add Labels
-            if show_labels:
-                for i, txt in enumerate(data['labels']):
-                    ax.annotate(
-                        txt, 
-                        (df['x'][i], df['y'][i]), 
-                        xytext=(0, 0),         # Center text in bubble if distinct enough? Or just offset.
-                        textcoords='offset points', # Let's stick to offset for readability
-                        ha='center', 
-                        va='center',
-                        fontsize=8,
-                        fontweight='bold',
-                        color='black'
-                    )
-            
-            # Styling
-            ax.set_title(f"Clustered Analysis: {data['y_label']} vs {data['x_label']}", fontsize=14, fontweight='bold')
-            ax.set_xlabel(data['x_label'], fontsize=10)
-            ax.set_ylabel(data['y_label'], fontsize=10)
-            ax.grid(True, linestyle='--', alpha=0.5)
-            
-            # Remove top and right spines
-            ax.spines['top'].set_visible(False)
-            ax.spines['right'].set_visible(False)
+        # CONSISTENT COLOR MAPPING
+        # Explicitly map cluster IDs to Plotly Default Colors to ensure Chart and List match
+        colors = px.colors.qualitative.Plotly
+        # Keys are now "1", "2", "3"...
+        color_map = {str(i+1): colors[i % len(colors)] for i in range(n_clusters)}
+        
+        fig = px.scatter(
+            df,
+            x='x',
+            y='y',
+            color='cluster',
+            hover_name='Model Name',
+            hover_data={'x': True, 'y': True, 'cluster': False, 'Model Name': False}, # Hide extra columns
+            labels={'x': data['x_label'], 'y': data['y_label'], 'cluster': 'Group'},
+            title=f"Clustered Analysis: {data['y_label']} vs {data['x_label']}",
+            template="plotly_white", # Use white theme
+            height=600,
+            color_discrete_map=color_map, # Enforce colors
+            category_orders={'cluster': sorted(list(color_map.keys()), key=int)} # Ensure legend order numeric
+        )
 
-            st.pyplot(fig)
+        # Update layout for premium look
+        fig.update_traces(
+            marker=dict(size=12, line=dict(width=1, color='DarkSlateGrey')),
+            selector=dict(mode='markers')
+        )
+        fig.update_layout(
+            plot_bgcolor='#ffffff',
+            paper_bgcolor='#ffffff',
+            font=dict(family="Inter, sans-serif", size=14, color="#000000"),
+            title_font=dict(size=20, family="Inter, sans-serif", weight=800, color="#000000"),
+            legend_title_text='Clusters',
+            legend=dict(
+                font=dict(color="#000000"),
+                title=dict(font=dict(color="#000000"))
+            ),
+            xaxis=dict(
+                title_font=dict(color="#000000"),
+                tickfont=dict(color="#000000"),
+                gridcolor='#e2e8f0'
+            ),
+            yaxis=dict(
+                title_font=dict(color="#000000"),
+                tickfont=dict(color="#000000"),
+                gridcolor='#e2e8f0'
+            )
+        )
+
+        # Display with streamlit
+        st.plotly_chart(fig, use_container_width=True)
+
             
         # Display Grouped Lists
         st.markdown("---")
@@ -406,25 +417,23 @@ if st.session_state.extracted_text:
         cluster_export_data = [] # Data structure for PDF export
         
         # Get Colormap to match chart
-        cmap = plt.get_cmap('viridis')
+        # ALREADY DEFINED ABOVE AS color_map
         
         # Group data by cluster
-        for cluster_id in range(n_clusters):
-            # Calculate Color
-            # Normalize index to 0-1 range for colormap
-            if n_clusters > 1:
-                norm_idx = cluster_id / (n_clusters - 1)
-            else:
-                norm_idx = 0.5
+        for i in range(n_clusters):
+            cluster_id = i+1 # 1-based index
             
-            rgba = cmap(norm_idx) # Returns (r, g, b, a) 0-1 range
-            # Convert to Hex for HTML
-            hex_color = mcolors.to_hex(rgba)
-            # Convert to RGB 0-255 for PDF
-            r, g, b = int(rgba[0]*255), int(rgba[1]*255), int(rgba[2]*255)
+            # Calculate Color
+            # Use the SAME map as the chart
+            hex_color = color_map[str(cluster_id)]
+            
+            # Convert Hex to RGB for PDF
+            hex_color_stripped = hex_color.lstrip('#')
+            r, g, b = tuple(int(hex_color_stripped[i:i+2], 16) for i in (0, 2, 4))
             
             # Get data for this cluster
-            cluster_indices = df[df['cluster'] == cluster_id].index
+            # FIX: Compare with string because df['cluster'] was converted to string for Plotly
+            cluster_indices = df[df['cluster'] == str(cluster_id)].index
             
             # Prepare Lists
             models = [data['labels'][i] for i in cluster_indices]
@@ -437,6 +446,7 @@ if st.session_state.extracted_text:
                 data['x_label']: xs,
                 data['y_label']: ys
             })
+
             
             # Collect data for PDF
             cluster_items = []
@@ -444,14 +454,14 @@ if st.session_state.extracted_text:
                 cluster_items.append({'model': m, 'x': x, 'y': y})
             
             cluster_export_data.append({
-                'id': cluster_id + 1,
+                'id': cluster_id,
                 'color': (r, g, b),
                 'items': cluster_items
             })
             
-            with cols[cluster_id]:
+            with cols[cluster_id-1]:
                 # Colored Header
-                st.markdown(f"<h4 style='color: {hex_color};'>Group {cluster_id + 1}</h4>", unsafe_allow_html=True)
+                st.markdown(f"<h4 style='color: {hex_color};'>Group {cluster_id}</h4>", unsafe_allow_html=True)
                 # Detailed Table
                 st.dataframe(display_df, hide_index=True)
 
