@@ -5,7 +5,6 @@ from google import genai
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import plotly.express as px
 import io
 import base64
 import os
