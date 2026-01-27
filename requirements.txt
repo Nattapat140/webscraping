@@ -6,3 +6,4 @@ matplotlib
 fpdf
 python-dotenv
 numpy
+scikit-learn

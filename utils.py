@@ -40,6 +40,59 @@ def create_pdf(text_content):
             
     return pdf.output(dest='S').encode('latin-1', 'replace')
 
+
+
+def create_cluster_pdf(cluster_data, x_label, y_label):
+    pdf = PDF()
+    pdf.alias_nb_pages()
+    pdf.add_page()
+    pdf.set_font('Arial', '', 12)
+    
+    # Title
+    pdf.set_font('Arial', 'B', 16)
+    title = 'Cluster Analysis Report'
+    pdf.cell(0, 10, title, 0, 1, 'L')
+    pdf.ln(5)
+    
+    # Sanitize labels for header
+    safe_x_label = x_label.encode('latin-1', 'replace').decode('latin-1')
+    safe_y_label = y_label.encode('latin-1', 'replace').decode('latin-1')
+    
+    for group in cluster_data:
+        # Group Header
+        # Color: Expecting tuple (R, G, B)
+        r, g, b = group.get('color', (0, 0, 0))
+        pdf.set_text_color(r, g, b)
+        pdf.set_font('Arial', 'B', 14)
+        pdf.cell(0, 10, f"Group {group['id']}", 0, 1, 'L')
+        
+        # Reset text color to black for table
+        pdf.set_text_color(0, 0, 0)
+        pdf.set_font('Arial', 'B', 10)
+        
+        # Table Header
+        # Widths: Model(90), X(40), Y(40) => Total 170
+        pdf.set_fill_color(240, 240, 240)
+        pdf.cell(90, 8, "Model Name", 1, 0, 'C', 1)
+        pdf.cell(50, 8, safe_x_label[:20], 1, 0, 'C', 1) # Truncate if too long
+        pdf.cell(50, 8, safe_y_label[:20], 1, 1, 'C', 1)
+        
+        # Table Rows
+        pdf.set_font('Arial', '', 10)
+        for item in group['items']:
+            # Handle encoding
+            model = item['model'].encode('latin-1', 'replace').decode('latin-1')
+            x_val = str(item['x']).encode('latin-1', 'replace').decode('latin-1')
+            y_val = str(item['y']).encode('latin-1', 'replace').decode('latin-1')
+            
+            pdf.cell(90, 8, model, 1, 0, 'L')
+            pdf.cell(50, 8, x_val, 1, 0, 'C')
+            pdf.cell(50, 8, y_val, 1, 1, 'C')
+            
+        pdf.ln(5)
+            
+    return pdf.output(dest='S').encode('latin-1', 'replace')
+
 def clean_html_content(soup):
     """
     Cleans up HTML content to remove scripts, styles, and other unnecessary tags
