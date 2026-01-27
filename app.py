@@ -11,24 +11,18 @@ import base64
 import os
 import json
 import re
-from dotenv import load_dotenv
 from utils import create_pdf, create_cluster_pdf
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 import matplotlib.colors as mcolors
 
-# Load environment variables
 # Access the secret securely
 GOOGLE_API_KEY = st.secrets["GEMINI_API_KEY"]
-
-# Configure the Gemini library
-# load_dotenv()
-# GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
 # Configuration
 st.set_page_config(page_title="AI Web Scraper & Visualizer", layout="wide")
 
-# Custom CSS for Premium Design
+# Custom CSS
 st.markdown("""
     <style>
     /* Global Styles */
@@ -81,23 +75,9 @@ st.markdown("""
 st.title("🤖 AI Web Scraper & Visualizer")
 st.markdown("This webapp is still in testing, the cost from calling gemini is linked to Ball's billing account")
 
-# --- Sidebar Inputs ---
-with st.sidebar:
-    st.header("Settings")
-    
-    if not GOOGLE_API_KEY:
-        st.warning("⚠️ API Key missing! Check .env file.")
-        api_key_input = st.text_input("Or enter API Key here", type="password")
-        if api_key_input:
-            GOOGLE_API_KEY = api_key_input
-    
-    if GOOGLE_API_KEY:
-        st.success("API Key Loaded Successfully")
+# --- Main Workflow is hereeeeeee ---
 
-
-# --- Main Workflow ---
-
-# Step 1: Input URL
+# Input URL
 target_url = st.text_input("🔗 Enter Target URL", placeholder="https://example.com/products")
 
 if 'scraped_data' not in st.session_state:
@@ -197,8 +177,7 @@ if st.session_state.extracted_text:
     st.markdown("---")
     st.subheader("📊 Data Visualization")
     
-    # 5. User Inputs for Plotting
-    
+    # User Inputs for Plotting
     # Extract keys dynamically
     extracted_keys = []
     if st.session_state.extracted_text:
@@ -217,7 +196,7 @@ if st.session_state.extracted_text:
         unique_keys = set()
         for m in matches:
             key = m.strip()
-            # Heuristic: exclude if it matches a known header or is too long (likely a sentence)
+            # exclude if it matches a known header or is too long (likely a sentence)
             if key and key not in exclude_keys and len(key) < 40 and "Overview" not in key:
                  unique_keys.add(key)
         
@@ -273,6 +252,8 @@ if st.session_state.extracted_text:
 
                 **Constraints:**
                 - X_Value and Y_Value must be pure numbers (e.g. 10.5). Do not include units like 'W' or 'mm'.
+                - CRITICAL: You MUST ROUND all float values to exactly 2 decimal places (e.g., 48.66, not 48.6587...).
+                - Perform the calculation step-by-step internally to ensure high precision before rounding.
                 - Do not use commas in numbers (e.g. use 1200 not 1,200).
                 - Only output valid data lines.
 
@@ -304,7 +285,7 @@ if st.session_state.extracted_text:
                                     
                                     # Ensure they are numbers
                                     # regex to find float-like pattern if needed, but strictly float() logic is usually enough if prompt obeyed.
-                                    # Let's use a small regex to extract the first number in the string to be safe against "100 mm"
+                                    # use a small regex to extract the first number in the string to be safe against "100 mm"
                                     x_match = re.search(r'-?\d*\.?\d+', x_str)
                                     y_match = re.search(r'-?\d*\.?\d+', y_str)
                                     
@@ -407,7 +388,6 @@ if st.session_state.extracted_text:
 
         # Display with streamlit
         st.plotly_chart(fig, use_container_width=True)
-
             
         # Display Grouped Lists
         st.markdown("---")
@@ -415,9 +395,6 @@ if st.session_state.extracted_text:
         
         cols = st.columns(n_clusters)
         cluster_export_data = [] # Data structure for PDF export
-        
-        # Get Colormap to match chart
-        # ALREADY DEFINED ABOVE AS color_map
         
         # Group data by cluster
         for i in range(n_clusters):
@@ -432,7 +409,6 @@ if st.session_state.extracted_text:
             r, g, b = tuple(int(hex_color_stripped[i:i+2], 16) for i in (0, 2, 4))
             
             # Get data for this cluster
-            # FIX: Compare with string because df['cluster'] was converted to string for Plotly
             cluster_indices = df[df['cluster'] == str(cluster_id)].index
             
             # Prepare Lists
@@ -447,7 +423,6 @@ if st.session_state.extracted_text:
                 data['y_label']: ys
             })
 
-            
             # Collect data for PDF
             cluster_items = []
             for m, x, y in zip(models, xs, ys):
