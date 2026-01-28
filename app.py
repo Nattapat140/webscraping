@@ -3,18 +3,11 @@ import requests
 from bs4 import BeautifulSoup
 from google import genai
 import plotly.express as px
-import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
-import io
-import base64
-import os
-import json
 import re
 from utils import create_pdf, create_cluster_pdf
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
-import matplotlib.colors as mcolors
 
 # Access the secret securely
 GOOGLE_API_KEY = st.secrets["GEMINI_API_KEY"]
@@ -133,7 +126,8 @@ if st.button("🚀 Scrape & Analyze"):
                 - [Field Name]: [Value]
                 ...
                 Dimension: [Length * Width * Height] (Always prioritize extracting dimensions if available)
-                (Repeat for next product)
+                CRITICAL FORMATTING FOR DIMENSION: You must strictly use the format "Num * Num * Num" (e.g., 6.95 * 5.83 * 1.55). Do not simply concatenate numbers. Ensure the asterisk * is present.
+                (Repeat for next product).
 
                 Constraints:
                 If a specific spec (like Dimension) is missing in the text, omit that bullet point.
@@ -334,24 +328,32 @@ if st.session_state.extracted_text:
         kmeans = KMeans(n_clusters=n_clusters, random_state=42)
         df['cluster'] = kmeans.fit_predict(scaled_features)
         
-            # Create Plotly Figure
+        # Create Plotly Figure
         # Shift clusters to start from 1 instead of 0
         df['cluster'] = (df['cluster'] + 1).astype(str)
         
-        # CONSISTENT COLOR MAPPING
         # Explicitly map cluster IDs to Plotly Default Colors to ensure Chart and List match
         colors = px.colors.qualitative.Plotly
         # Keys are now "1", "2", "3"...
         color_map = {str(i+1): colors[i % len(colors)] for i in range(n_clusters)}
+        
+        # Calculate Frequency for Bubble Size (Overlap Handling)
+        df['frequency'] = df.groupby(['x', 'y'])['x'].transform('count')
+
+        # Toggle for showing labels is backkkkkk
+        show_labels = st.checkbox("Show Labels", value=False)
         
         fig = px.scatter(
             df,
             x='x',
             y='y',
             color='cluster',
+            size='frequency', # Size based on overlap count
+            size_max=20, # Cap the maximum size
             hover_name='Model Name',
-            hover_data={'x': True, 'y': True, 'cluster': False, 'Model Name': False}, # Hide extra columns
-            labels={'x': data['x_label'], 'y': data['y_label'], 'cluster': 'Group'},
+            text='Model Name' if show_labels else None,
+            hover_data={'x': True, 'y': True, 'cluster': False, 'Model Name': False, 'frequency': True}, 
+            labels={'x': data['x_label'], 'y': data['y_label'], 'cluster': 'Group', 'frequency': 'Count'},
             title=f"Clustered Analysis: {data['y_label']} vs {data['x_label']}",
             template="plotly_white", # Use white theme
             height=600,
@@ -359,9 +361,12 @@ if st.session_state.extracted_text:
             category_orders={'cluster': sorted(list(color_map.keys()), key=int)} # Ensure legend order numeric
         )
 
+        if show_labels:
+            fig.update_traces(textposition='top center')
+
         # Update layout for premium look
         fig.update_traces(
-            marker=dict(size=12, line=dict(width=1, color='DarkSlateGrey')),
+            marker=dict(line=dict(width=1, color='DarkSlateGrey')), # Removed fixed size=12
             selector=dict(mode='markers')
         )
         fig.update_layout(

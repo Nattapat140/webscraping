@@ -2,9 +2,7 @@ streamlit
 google-genai
 beautifulsoup4
 requests
-matplotlib
 fpdf
-python-dotenv
-numpy
+pandas
 scikit-learn
 plotly
