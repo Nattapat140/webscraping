@@ -259,6 +259,7 @@ if st.session_state.extracted_text:
                 Model Name | X_Value | Y_Value
 
                 **Constraints:**
+                - Do not skip any model.
                 - X_Value and Y_Value must be pure numbers (e.g. 10.5). Do not include units like 'W' or 'mm'.
                 - CRITICAL: You MUST ROUND all float values to exactly 2 decimal places (e.g., 48.66, not 48.6587...).
                 - Perform the calculation step-by-step internally to ensure high precision before rounding.
