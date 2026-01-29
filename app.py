@@ -108,7 +108,7 @@ if st.button("🚀 Scrape & Analyze"):
                 extraction_prompt = f"""
                 **Objective:**
                 Extract key product details from the data and present them in a clean, standardized format. 
-                CRITICAL INSTRUCTION: You must extract EVERY SINGLE product model found in the text. Do not summarize, do not skip any, and do not use "etc." or "..." for the list of products. If there are 50 products, output 50 blocks.
+                CRITICAL INSTRUCTION: You must extract EVERY SINGLE product model found in the text. Do not summarize, do not skip any, and do not use "etc." or "..." for the list of products. If there are 400 products, output 400 blocks.
 
                 Instructions:
                 Identify: Locate every distinct product model in the text.
@@ -138,13 +138,27 @@ if st.button("🚀 Scrape & Analyze"):
                 {cleaned_text[:]} 
                 """
 
-                response = client.models.generate_content(
+                # Stream the response
+                response_stream = client.models.generate_content_stream(
                     model='gemini-2.5-flash', 
                     contents=extraction_prompt
                 )
-                st.session_state.extracted_text = response.text
                 
-                st.success("Analysis Complete!")
+                # Create a generator that yields text chunks
+                def stream_text():
+                    for chunk in response_stream:
+                        if chunk.text:
+                            yield chunk.text
+
+                # Display streaming output
+                st.subheader("📋 Product Specifications")
+                with st.container(height=600):
+                    full_response = st.write_stream(stream_text())
+                
+                # Store final result
+                st.session_state.extracted_text = full_response
+                st.rerun()
+
                 
             except Exception as e:
                 st.error(f"An error occurred: {e}")
