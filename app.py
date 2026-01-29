@@ -144,19 +144,23 @@ if st.button("🚀 Scrape & Analyze"):
                     contents=extraction_prompt
                 )
                 
+                # Accumulate text manually to ensure data integrity
+                accumulated_data = []
+
                 # Create a generator that yields text chunks
                 def stream_text():
                     for chunk in response_stream:
                         if chunk.text:
+                            accumulated_data.append(chunk.text)
                             yield chunk.text
 
                 # Display streaming output
                 st.subheader("📋 Product Specifications")
                 with st.container(height=600):
-                    full_response = st.write_stream(stream_text())
+                    st.write_stream(stream_text())
                 
                 # Store final result
-                st.session_state.extracted_text = full_response
+                st.session_state.extracted_text = "".join(accumulated_data)
                 st.rerun()
 
                 
